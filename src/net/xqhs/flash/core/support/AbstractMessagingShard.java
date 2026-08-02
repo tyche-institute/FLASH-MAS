@@ -12,6 +12,7 @@
 package net.xqhs.flash.core.support;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import net.xqhs.flash.core.Entity;
@@ -43,7 +44,7 @@ import net.xqhs.util.logging.Debug.DebugItem;
  * 
  * @author Andrei Olaru
  */
-public abstract class AbstractMessagingShard extends AgentShardCore implements MessagingShard {
+public abstract class AbstractMessagingShard extends AgentShardCore implements GatedMessagingShard {
 	/**
 	 * Debugging settings for messaging shards.
 	 * 
@@ -110,6 +111,11 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 	 * Outgoing message hooks.
 	 */
 	protected transient Set<OutgoingMessageHook>	outgoingHooks	= null;
+	/**
+	 * Optional pre-dispatch security gates. A linked set makes evaluation order
+	 * deterministic while avoiding duplicate registration of the same gate.
+	 */
+	protected transient Set<OutgoingMessageGate>	outgoingGates	= null;
 	
 	/**
 	 * No-argument constructor.
@@ -121,6 +127,7 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 	@Override
 	public boolean addGeneralContext(EntityProxy<? extends Entity<?>> context) {
 		outgoingHooks = new HashSet<>();
+		outgoingGates = new LinkedHashSet<>();
 		if(context instanceof ClassicMessagingPylonProxy) {
 			classicPylon = (ClassicMessagingPylonProxy) context;
 			classicInbox = new ClassicMessageReceiver() {
@@ -239,6 +246,8 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 	@Override
 	public boolean sendMessage(String source, String destination, String content) {
 		if(classicPylon != null) {
+			if(!authorizeOutgoing(OutgoingMessageContext.of(source, destination, content)))
+				return false;
 			for(OutgoingMessageHook hook : outgoingHooks)
 				hook.sendingMessage(source, destination, content);
 			return classicPylon.send(source, destination, content);
@@ -246,8 +255,14 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 		else if(wavePylon != null) {
 			AgentWave wave = new AgentWave(content).appendDestination(AgentWave.pathToElements(destination))
 					.addSourceElements(AgentWave.pathToElementsPlus(source, getAgentAddress()));
+			OutgoingMessageContext authorizedContext = OutgoingMessageContext.fromWave(wave);
+			boolean gated = hasOutgoingMessageGates();
+			if(!authorizeOutgoing(authorizedContext))
+				return false;
 			for(OutgoingMessageHook hook : outgoingHooks)
 				hook.sendingMessage(wave);
+			if(gated && !authorizedContext.equals(OutgoingMessageContext.fromWave(wave)))
+				return false;
 			return wavePylon.send(wave);
 		}
 		else
@@ -259,11 +274,19 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 		if(!getAgentAddress().equals(wave.getFirstSource()))
 			wave.addSourceElementFirst(getAgentAddress());
 		if(wavePylon != null) {
+			OutgoingMessageContext authorizedContext = OutgoingMessageContext.fromWave(wave);
+			boolean gated = hasOutgoingMessageGates();
+			if(!authorizeOutgoing(authorizedContext))
+				return false;
 			for(OutgoingMessageHook hook : outgoingHooks)
 				hook.sendingMessage(wave);
+			if(gated && !authorizedContext.equals(OutgoingMessageContext.fromWave(wave)))
+				return false;
 			return wavePylon.send(wave);
 		}
 		else if(classicPylon != null) {
+			if(!authorizeOutgoing(OutgoingMessageContext.fromWave(wave)))
+				return false;
 			for(OutgoingMessageHook hook : outgoingHooks)
 				hook.sendingMessage(wave.getCompleteSource(), wave.getCompleteDestination(),
 						wave.getSerializedContent());
@@ -294,6 +317,39 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 	@Override
 	public void addOutgoingMessageHook(OutgoingMessageHook hook) {
 		outgoingHooks.add(hook);
+	}
+
+	@Override
+	public void addOutgoingMessageGate(OutgoingMessageGate gate) {
+		if(gate == null)
+			throw new IllegalArgumentException("gate must not be null");
+		outgoingGates.add(gate);
+	}
+
+	/**
+	 * Evaluates every registered gate. Any denial, missing decision or runtime
+	 * failure stops the dispatch. Existing shards with no gates preserve their
+	 * previous behaviour.
+	 */
+	protected boolean authorizeOutgoing(OutgoingMessageContext context) {
+		if(outgoingGates == null || outgoingGates.isEmpty())
+			return true;
+		for(OutgoingMessageGate gate : outgoingGates)
+			try {
+				MessageDecision decision = gate.authorize(context);
+				if(decision == null || !decision.isPermitted())
+					return false;
+			} catch(RuntimeException e) {
+				return false;
+			}
+		return true;
+	}
+
+	/**
+	 * @return whether dispatch is currently subject to at least one gate.
+	 */
+	protected boolean hasOutgoingMessageGates() {
+		return outgoingGates != null && !outgoingGates.isEmpty();
 	}
 	
 	/**
