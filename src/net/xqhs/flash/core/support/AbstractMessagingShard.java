@@ -24,6 +24,8 @@ import net.xqhs.flash.core.shard.AgentShardDesignation.StandardAgentShard;
 import net.xqhs.util.logging.Debug.DebugItem;
 
 import static net.xqhs.flash.core.recorder.RecorderService.record;
+import net.xqhs.flash.core.recorder.ActionDecision;
+import net.xqhs.flash.core.recorder.PolicyService;
 
 /**
  * Prototype class for shards offering messaging functionality, containing some general implementation-independent
@@ -247,6 +249,13 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 		//[HOOK] Record sent messages
 		record(getAgentAddress(), source, destination, content);
 
+		//[HOOK] Authorize the send, at the same seam and with the same arguments
+		ActionDecision decision = PolicyService.check(getAgentAddress(), source, destination, content);
+		if(!decision.isPermitted()) {
+			record(getAgentAddress(), "ACTION_DENIED", source, destination, decision.getReason());
+			return false;
+		}
+
 		if(classicPylon != null) {
 			for(OutgoingMessageHook hook : outgoingHooks)
 				hook.sendingMessage(source, destination, content);
@@ -270,6 +279,13 @@ public abstract class AbstractMessagingShard extends AgentShardCore implements M
 
 		//[HOOK] Record sent waves
 		record(getAgentAddress(), wave, "WAVE_SENT");
+
+		//[HOOK] Authorize the send, at the same seam and with the same arguments
+		ActionDecision waveDecision = PolicyService.check(getAgentAddress(), wave, "WAVE_SENT");
+		if(!waveDecision.isPermitted()) {
+			record(getAgentAddress(), "ACTION_DENIED", wave.getCompleteDestination(), waveDecision.getReason());
+			return false;
+		}
 
 		if(wavePylon != null) {
 			for(OutgoingMessageHook hook : outgoingHooks)
