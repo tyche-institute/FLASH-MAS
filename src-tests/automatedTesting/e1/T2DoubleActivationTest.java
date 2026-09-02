@@ -114,11 +114,22 @@ public class T2DoubleActivationTest {
 		originalOut.println("  (received before the replay onto C)   : " + distinctBeforeReplay);
 		originalOut.println("  registerEntity duplicate check        : none (Node.registerEntity appends)");
 		try {
-			java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/claude-1000/e1-t2.log"), outContent.toString());
+			java.nio.file.Files.writeString(logPath("e1-t2"), outContent.toString());
 		} catch(Exception e) {
 			// diagnostics only
 		}
 
 		assertTrue("at least two incarnations must dispatch for the double-activation finding", dispatched >= 2);
 	}
+
+	/**
+	 * Where a run's console capture is written, for diagnostics only. Under <code>target/</code> so a clone of this
+	 * repository writes inside itself and needs no directory that happens to exist on the author's machine.
+	 */
+	protected static java.nio.file.Path logPath(String name) throws java.io.IOException {
+		java.nio.file.Path dir = java.nio.file.Path.of("target", "e1-logs");
+		java.nio.file.Files.createDirectories(dir);
+		return dir.resolve(name + ".log");
+	}
+
 }

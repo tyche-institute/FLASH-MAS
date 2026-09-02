@@ -93,7 +93,7 @@ public class T3StaleQueueTest {
 		originalOut.println("  queued action received by peer   : " + StaleQueueShard.queuedReceived.get());
 		originalOut.println("  moved successfully               : " + out.contains("agent has moved successfully"));
 		try {
-			java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/claude-1000/e1-t3-" + arm.split(" ")[0] + ".log"), out);
+			java.nio.file.Files.writeString(logPath("e1-t3-" + arm.split(" ")[0]), out);
 		} catch(Exception e) {
 			// diagnostics only
 		}
@@ -118,4 +118,15 @@ public class T3StaleQueueTest {
 		assertTrue("queued action must be denied against current authority",
 				StaleQueueShard.queuedSendResult.get() == 0 && StaleQueueShard.queuedReceived.get() == 0);
 	}
+
+	/**
+	 * Where a run's console capture is written, for diagnostics only. Under <code>target/</code> so a clone of this
+	 * repository writes inside itself and needs no directory that happens to exist on the author's machine.
+	 */
+	protected static java.nio.file.Path logPath(String name) throws java.io.IOException {
+		java.nio.file.Path dir = java.nio.file.Path.of("target", "e1-logs");
+		java.nio.file.Files.createDirectories(dir);
+		return dir.resolve(name + ".log");
+	}
+
 }

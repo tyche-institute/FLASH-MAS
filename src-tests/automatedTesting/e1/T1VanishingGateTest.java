@@ -119,8 +119,7 @@ public class T1VanishingGateTest {
 		originalOut.println("  peer received POST markers       : " + SinkShard.postReceived.get());
 		originalOut.println("  moved successfully in log        : " + output.contains("agent has moved successfully"));
 		try {
-			java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/claude-1000/e1-t1-" + arm.split(" ")[0] + ".log"),
-					output);
+			java.nio.file.Files.writeString(logPath("e1-t1-" + arm.split(" ")[0]), output);
 		} catch(Exception e) {
 			// diagnostics only
 		}
@@ -148,4 +147,15 @@ public class T1VanishingGateTest {
 		assertTrue("the gate must be installed at least twice in the reinstall arm",
 				GateProbeShard.gateInstalls.get() >= 2);
 	}
+
+	/**
+	 * Where a run's console capture is written, for diagnostics only. Under <code>target/</code> so a clone of this
+	 * repository writes inside itself and needs no directory that happens to exist on the author's machine.
+	 */
+	protected static java.nio.file.Path logPath(String name) throws java.io.IOException {
+		java.nio.file.Path dir = java.nio.file.Path.of("target", "e1-logs");
+		java.nio.file.Files.createDirectories(dir);
+		return dir.resolve(name + ".log");
+	}
+
 }
