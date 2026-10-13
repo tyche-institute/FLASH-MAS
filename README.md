@@ -10,6 +10,12 @@ Flash-MAS is distributed in the hope that it will be useful, but WITHOUT ANY WAR
 You should have received a copy of the GNU General Public License along with Flash-MAS.  If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------- -->
 
+> **Fork notice.** This repository is a fork of [andreiolaru-ro/FLASH-MAS](https://github.com/andreiolaru-ro/FLASH-MAS), the original FLASH-MAS by Andrei Olaru and its contributors. Use the original for anything other than reproducing our experiments.
+> The fork adds two research branches maintained by the Tyche Institute, [`prototype/outgoing-message-gate`](https://github.com/tyche-institute/FLASH-MAS/tree/prototype/outgoing-message-gate) and [`prototype/recorder-seam-policy`](https://github.com/tyche-institute/FLASH-MAS/tree/prototype/recorder-seam-policy). Every other branch is an unmodified, possibly older copy of the original.
+> FLASH-MAS and the changes in this fork are distributed under the GNU General Public License, version 3 or later.
+>
+> **Changes on this branch** (Anton Sokolov, Tyche Institute, 2 September 2026), on top of the original `verification` branch at `900ddbd`: a policy seam beside the recorder (`ActionPolicy`, `ActionDecision`, `PolicyService`, consulted in `AbstractMessagingShard` where `record()` is called) and Experiment 1R. The article's results are pinned to commit `d51f793e`.
+
 # ![](identity/logo-BW-50.png) FLASH-MAS
 
 [![Java CI with Maven](https://github.com/andreiolaru-ro/FLASH-MAS/actions/workflows/run-tests.yml/badge.svg?branch=documentation)](https://github.com/andreiolaru-ro/FLASH-MAS/actions/workflows/run-tests.yml)
